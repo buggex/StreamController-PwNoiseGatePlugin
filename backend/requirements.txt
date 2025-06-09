@@ -1,0 +1,2 @@
+loguru
+streamcontroller_plugin_tools
