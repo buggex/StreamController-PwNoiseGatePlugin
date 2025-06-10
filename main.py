@@ -1,13 +1,15 @@
 # Import StreamController modules
 from src.backend.PluginManager.PluginBase import PluginBase
 from src.backend.PluginManager.ActionHolder import ActionHolder
+from src.backend.DeckManagement.InputIdentifier import Input
+from src.backend.PluginManager.ActionInputSupport import ActionInputSupport
 
 import os
 
 # Import actions
-from .actions import Dial
+from .actions.dial import Dial
 
-class PluginTemplate(PluginBase):
+class PwNoiseGate(PluginBase):
     def __init__(self):
         super().__init__()
 
@@ -19,14 +21,19 @@ class PluginTemplate(PluginBase):
         )
         self.wait_for_backend(tries=5)
 
-        ## Register actions
-        self.simple_action_holder = ActionHolder(
-            plugin_base = self,
-            action_base = Dial,
-            action_id = "com_buggex_pw_noise_gate::Dial",
-            action_name = "Dial",
+        # Register actions
+        self.dial_holder = ActionHolder(
+            plugin_base=self,
+            action_base=Dial,
+            action_id_suffix="Dial",
+            action_name="Dial",
+            action_support={
+                Input.Key: ActionInputSupport.UNSUPPORTED,
+                Input.Dial: ActionInputSupport.SUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNSUPPORTED
+            }
         )
-        self.add_action_holder(self.simple_action_holder)
+        self.add_action_holder(self.dial_holder)
 
         # Register plugin
         self.register(
