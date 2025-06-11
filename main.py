@@ -19,7 +19,6 @@ class PwNoiseGate(PluginBase):
             os.path.join(self.PATH, "backend", ".venv"),
             open_in_terminal=False,
         )
-        self.wait_for_backend(tries=5)
 
         # Register actions
         self.dial_holder = ActionHolder(
@@ -42,3 +41,6 @@ class PwNoiseGate(PluginBase):
             plugin_version = "1.0.0",
             app_version = "1.1.1-alpha"
         )
+    
+    def __del__(self):
+        self.backend.release()
