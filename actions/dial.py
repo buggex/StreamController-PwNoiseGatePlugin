@@ -37,5 +37,10 @@ class Dial(ActionCore):
     def on_turn_cw(self):
         self.plugin_base.backend.inc_threshold()
 
+    def on_message(self, message):
+        print("on_message {}\n", message)
+
     def on_ready(self):
-        pass
+        print("on_ready {}\n", self.plugin_base.backend)
+        self.plugin_base.backend.add_callback(self.on_message)
+        
