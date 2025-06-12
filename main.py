@@ -5,6 +5,12 @@ from src.backend.DeckManagement.InputIdentifier import Input
 from src.backend.PluginManager.ActionInputSupport import ActionInputSupport
 
 import os
+import sys
+from pathlib import Path
+
+# Add plugin to sys.paths
+ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
+sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
 # Import actions
 from .actions.dial import Dial

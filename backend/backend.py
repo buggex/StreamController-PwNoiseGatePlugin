@@ -28,7 +28,7 @@ class Backend(BackendBase):
         self.port = 8080
         self.quit = False
         self.outgoing_queue = queue.Queue()
-        self.callback = None
+        self.callbacks = []
 
         self.socket_thread = threading.Thread(target=self.socket_thread_run)
         self.socket_thread.start()
@@ -43,19 +43,18 @@ class Backend(BackendBase):
     def set_port(self, port):
         self.port = port
 
-    def inc_threshold(self):
-        self.send_data("threshold|1")
+    def inc_param(self, param_name, param_step):
+        self.send_data(param_name + "|" + str(param_step))
 
-    def dec_threshold(self):
-        self.send_data("threshold|-1")
+    def dec_param(self, param_name, param_step):
+        self.send_data(param_name + "|-" + str(param_step))
 
     def send_data(self, data):
         log.debug("Puttong on queue: {}", data)
         self.outgoing_queue.put(data)
 
     def add_callback(self, callback: Callable):
-        print("add_callback {}\n", callback)
-        self.callback = callback
+        self.callbacks.append(callback)
 
     def socket_thread_run(self):
         log.debug("Connection thread start")
@@ -75,9 +74,23 @@ class Backend(BackendBase):
                 pass
             
             if received_data:
-                log.debug("Received data: {} | {}", received_data, self.callback)
-                if self.callback:
-                    self.callback(received_data)
+                for cmd in received_data.decode().split("\n"):
+                    cmd_strip = cmd.strip()
+                    if cmd_strip == "":
+                        continue
+                    log.debug("Received command: {}", cmd_strip)
+
+                    cmd_split = cmd_strip.split("|")
+                    if len(cmd_split) != 2:
+                        log.error("Invalid command format: {}", cmd_strip)
+                        continue
+
+                    if self.callbacks:
+                        for callback in self.callbacks:
+                            if callable(callback):
+                                callback(cmd_split[0], cmd_split[1])
+                            else:
+                                log.error("Callback is not callable: {}", callback)
 
             while not self.outgoing_queue.empty():
                 try:
