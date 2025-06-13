@@ -14,12 +14,6 @@ from pathlib import Path
 ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
-# TODO 
-#  - Socket thead
-#     - how to handle changes to host or port? START A NEW THREAD
-#     - how to send data to the backend?
-
-
 class Backend(BackendBase):
     def __init__(self):
         super().__init__()
