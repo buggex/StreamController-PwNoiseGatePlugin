@@ -62,8 +62,3 @@ class PwNoiseGate(PluginBase):
             plugin_version = "1.0.0",
             app_version = "1.1.1-alpha"
         )
-    
-    def __del__(self):
-        log.debug("Cleaning up Pipewire Noise Gate plugin...")
-        if self.backend:
-            self.backend.release()

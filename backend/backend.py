@@ -7,6 +7,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+import globals as gl
+
 # To get access to plugin files
 import sys
 from pathlib import Path
@@ -14,6 +16,7 @@ ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
 # TODO - Add ping to check if the socket is still connected?
+# TODO - The 5 second wait on reconnect cause shutdown to take longer than it should
 
 class Backend:
     def __init__(self):
@@ -75,7 +78,7 @@ class Backend:
             log.error("Failed to connect to socket: {}", e)
         
         while True:
-            if self.stop_socket_thread == True:
+            if self.stop_socket_thread == True or gl.threads_running == False:
                 break
 
             if not self.is_socket_connected(connection):
@@ -113,7 +116,8 @@ class Backend:
             # Sleep thread
             time.sleep(0.01) # 10 ms
         
-        connection.close()
+        if connection is not None:
+            connection.close()
         log.debug("Connection thread stop")
 
     def has_connection_parameters_changed(self, current_host, current_port):
