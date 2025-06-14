@@ -81,7 +81,7 @@ class Backend:
 
         state = SocketStates.INIT
 
-        ping_interval_ns = 5000000000 # 5 seconds in nanoseconds
+        ping_interval_ns = 1000000000 # 1 second in nanoseconds
         last_ping_time = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
 
         connection_interval_ns = 5000000000 # 5 seconds in nanoseconds
@@ -117,14 +117,14 @@ class Backend:
             #
             if state == SocketStates.CONNECTED:
 
-                # PING
+                #  - PING
                 if current_time - last_ping_time > ping_interval_ns:
                     last_ping_time = current_time
                     if not self.send_ping(connection):
                         log.error("Ping failed, trying to reconnect")
                         state = SocketStates.DISCONNECTED
 
-                # HANDLE DATA
+                #  - HANDLE DATA
                 else:
                     # Receive data from the socket
                     try:
@@ -156,7 +156,7 @@ class Backend:
             # WAIT FOR RECONNECT TRY
             #
             elif state == SocketStates.RECONNECT_TIMEOUT:
-                # If we are in reconnect timeout, wait for a while before trying to reconnect again
+                # If reconnect faild, wait for a while before trying again
                 if current_time - last_connection_time > connection_interval_ns:
                     state = SocketStates.DISCONNECTED
         
