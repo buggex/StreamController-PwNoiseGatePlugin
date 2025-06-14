@@ -41,7 +41,10 @@ class Backend:
         self.socket_thread.join()
 
     def set_port(self, port):
-        self.port = port
+        self.port = int(port)
+
+    def set_host(self, host):
+        self.host = host
 
     def inc_param(self, param_name, param_step):
         self.send_data(param_name + "|" + str(param_step))
@@ -168,7 +171,6 @@ class Backend:
         return self.host != current_host or self.port != current_port        
     
     def send_ping(self, connection):
-        log.debug("Sending ping to socket...")
         if connection is None:
             return False
         try:

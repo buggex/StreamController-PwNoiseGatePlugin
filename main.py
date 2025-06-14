@@ -21,8 +21,15 @@ from .actions.toggle import Toggle
 # Import backend
 from .backend.backend import Backend
 
+from .helpers import settings as Settings
+
+# Import gtk modules - used for settings
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Gtk, Adw, Gio
+
 # TODO
-#  - settings for host and port
 #  - images for dial and toggle
 
 class PwNoiseGate(PluginBase):
@@ -31,6 +38,12 @@ class PwNoiseGate(PluginBase):
 
         # Start backend
         self.backend = Backend()
+
+        # Load settings
+        settings = self.get_settings()
+        self.backend.set_host(settings.get(Settings.SETTING_HOST, "localhost"))
+        self.backend.set_port(settings.get(Settings.SETTING_PORT, "8080"))
+        self.set_settings(settings) # set setting if this is the first run
 
         # Register actions
         self.dial_holder = ActionHolder(
@@ -66,3 +79,40 @@ class PwNoiseGate(PluginBase):
             plugin_version = "1.0.0",
             app_version = "1.1.1-alpha"
         )
+
+    def get_settings_area(self):
+        settings = self.get_settings()
+        host = settings.get(Settings.SETTING_HOST, "localhost")
+        port = settings.get(Settings.SETTING_PORT, "8080")
+        
+
+        self.host_entry = Adw.EntryRow(title="Host") # TODO translate
+        self.host_entry.set_text(host)
+        self.host_entry.connect("notify::text", self.on_host_changed)
+
+        self.port_entry = Adw.EntryRow(title="Port") # TODO translate
+        self.port_entry.set_text(port)
+        self.port_entry.connect("notify::text", self.on_port_changed)
+
+        group = Adw.PreferencesGroup()
+        group.add(self.host_entry)
+        group.add(self.port_entry)
+        return group
+
+    def on_host_changed(self, entry, *args):
+        host = entry.get_text()
+        if host:
+            self.backend.set_host(host)
+
+            settings = self.get_settings()
+            settings[Settings.SETTING_HOST] = host
+            self.set_settings(settings) 
+
+    def on_port_changed(self, entry, *args):
+        port = entry.get_text()
+        if port:
+            self.backend.set_port(port)
+
+            settings = self.get_settings()
+            settings[Settings.SETTING_PORT] = port
+            self.set_settings(settings)
