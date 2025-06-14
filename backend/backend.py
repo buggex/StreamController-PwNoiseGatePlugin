@@ -13,6 +13,8 @@ from pathlib import Path
 ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
+# TODO - Add ping to check if the socket is still connected?
+
 class Backend:
     def __init__(self):
         self.host = "127.0.0.1"
@@ -39,6 +41,9 @@ class Backend:
     def dec_param(self, param_name, param_step):
         self.send_data(param_name + "|-" + str(param_step))
 
+    def toggle_param(self, param_name):
+        self.send_data(param_name + "!0")
+
     def request_param(self, param_name):
         self.send_data(param_name + "|0")
 
@@ -50,6 +55,14 @@ class Backend:
             if callback not in self.callbacks:
                 log.debug("Adding callback: {}", callback)
                 self.callbacks.append(callback)
+
+    def remove_callback(self, callback: Callable):
+        with self.callbacks_mutex:
+            if callback in self.callbacks:
+                log.debug("Removing callback: {}", callback)
+                self.callbacks.remove(callback)
+            else:
+                log.debug("Callback not found: {}", callback)
 
     def socket_thread_run(self):
         connection = None
@@ -156,6 +169,7 @@ class Backend:
         try:
             cmd = self.outgoing_queue.get()
             log.debug("Sending {}", cmd)
+            cmd += "\n"  # Ensure the command ends with a newline
             connection.sendall(cmd.encode());
         except:
             log.error("Failed to send {}", cmd)
