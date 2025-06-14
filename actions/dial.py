@@ -67,10 +67,20 @@ class Dial(ActionCore):
         self.param_name = param.get_string()
         self.ui_step_size.set_value(Params.DialParametersDefaultStep[self.param_name])
 
+        settings = self.get_settings()
+        settings[Settings.SETTING_PARAMETER_NAME] = self.param_name
+        self.set_settings(settings)
+
+        self.plugin_base.backend.request_param(self.param_name)
+
         self.update_title()        
 
     def on_step_size_changed(self, control, param):
-        self.param_step = self.ui_step_size.get_value_as_int()
+        self.param_step = int(self.ui_step_size.get_value())
+        
+        settings = self.get_settings()
+        settings[Settings.SETTING_PARAMETER_STEP] = self.param_step
+        self.set_settings(settings)        
     
     def on_turn_ccw(self):
         self.plugin_base.backend.dec_param(self.param_name, self.param_step)
@@ -97,10 +107,13 @@ class Dial(ActionCore):
             self.param_step = param_step
 
     def on_ready(self):
+        log.debug("Dial action is ready")
         self.plugin_base.backend.add_callback(self.on_param_callback)
         self.plugin_base.backend.request_param(self.param_name)
 
     def on_update(self):
+        log.debug("Dial action is updating")
+        self.load_config_values()
         self.update_title()
         self.update_value_label()
 
@@ -109,7 +122,7 @@ class Dial(ActionCore):
 
     def update_value_label(self):
         value_text = str(self.param_value)
-        if value_text.isnumeric():
+        if value_text != "N/A":
             value_text += " " + Params.DialParametersUnit[self.param_name]
         self.set_bottom_label(text=value_text)
         

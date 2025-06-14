@@ -1,4 +1,3 @@
-from streamcontroller_plugin_tools import BackendBase
 from loguru import logger as log
 
 import socket
@@ -14,22 +13,21 @@ from pathlib import Path
 ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
-class Backend(BackendBase):
+class Backend:
     def __init__(self):
-        super().__init__()
         self.host = "127.0.0.1"
         self.port = 8080
         self.stop_socket_thread = False
         self.outgoing_queue = queue.Queue()
         self.callbacks = []
 
+        self.callbacks_mutex = threading.Lock()
+
         self.socket_thread = threading.Thread(target=self.socket_thread_run)
         self.socket_thread.start()
 
     def __del__(self):
-        # TODO HOW?
-        log.debug("__del__")
-        self.thread_data.quit = True
+        self.stop_socket_thread = True
         self.socket_thread.join()
 
     def set_port(self, port):
@@ -42,19 +40,26 @@ class Backend(BackendBase):
         self.send_data(param_name + "|-" + str(param_step))
 
     def request_param(self, param_name):
-        self.send_data(param_name + "|request")
+        self.send_data(param_name + "|0")
 
     def send_data(self, data):
         self.outgoing_queue.put(data)
 
     def add_callback(self, callback: Callable):
-        self.callbacks.append(callback)
+        with self.callbacks_mutex:
+            if callback not in self.callbacks:
+                log.debug("Adding callback: {}", callback)
+                self.callbacks.append(callback)
 
     def socket_thread_run(self):
         connection = None
         current_host = self.host
         current_port = self.port
-        connection = self.socket_reconnect(connection, current_host, current_port)
+
+        try:
+            connection = self.socket_reconnect(connection, current_host, current_port)
+        except Exception as e:
+            log.error("Failed to connect to socket: {}", e)
         
         while True:
             if self.stop_socket_thread == True:
@@ -65,7 +70,8 @@ class Backend(BackendBase):
                 try:
                     connection = self.socket_reconnect(connection, current_host, current_port)
                     time.sleep(0.1) # Wait a bit before trying to continue
-                except:
+                except Exception as e:
+                    log.error("Failed to reconnect: {}", e)
                     time.sleep(5) # Wait 5 seconds before trying to reconnect
                     continue
 
@@ -101,6 +107,8 @@ class Backend(BackendBase):
         return self.host != current_host or self.port != current_port        
     
     def is_socket_connected(self, connection):
+        if connection is None:
+            return False
         try:
             connection.sendall(b'')
             return True
@@ -132,15 +140,16 @@ class Backend(BackendBase):
                 log.error("Invalid command format: {}", cmd_strip)
                 continue
 
-            if self.callbacks:
-                for callback in self.callbacks:
-                    if callable(callback):
-                        try:
-                            callback(cmd_split[0], cmd_split[1])
-                        except Exception as e:
-                            log.error("Error in callback: {} - {}", callback, e)
-                    else:
-                        log.error("Callback is not callable: {}", callback)
+            with self.callbacks_mutex:
+                if len(self.callbacks) > 0:
+                    for callback in self.callbacks:
+                        if callable(callback):
+                            try:
+                                callback(cmd_split[0], cmd_split[1])
+                            except Exception as e:
+                                log.error("Error in callback: {} - {}", callback, e)
+                        else:
+                            log.error("Callback is not callable: {}", callback)
     
     # handle outgoing messages
     def socket_thread_handle_outgoing(self, connection):
@@ -150,5 +159,3 @@ class Backend(BackendBase):
             connection.sendall(cmd.encode());
         except:
             log.error("Failed to send {}", cmd)
-
-backend = Backend()

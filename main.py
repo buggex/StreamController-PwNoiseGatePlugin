@@ -15,16 +15,15 @@ sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 # Import actions
 from .actions.dial import Dial
 
+# Import backend
+from .backend.backend import Backend
+
 class PwNoiseGate(PluginBase):
     def __init__(self):
         super().__init__()
 
         # Start backend
-        self.launch_backend(
-            os.path.join(self.PATH, "backend", "backend.py"),
-            os.path.join(self.PATH, "backend", ".venv"),
-            open_in_terminal=False,
-        )
+        self.backend = Backend()
 
         # Register actions
         self.dial_holder = ActionHolder(
@@ -49,4 +48,5 @@ class PwNoiseGate(PluginBase):
         )
     
     def __del__(self):
-        self.backend.release()
+        if self.backend:
+            self.backend.release()
