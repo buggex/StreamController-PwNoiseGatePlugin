@@ -21,6 +21,10 @@ from .actions.toggle import Toggle
 # Import backend
 from .backend.backend import Backend
 
+# TODO
+#  - settings for host and port
+#  - images for dial and toggle
+
 class PwNoiseGate(PluginBase):
     def __init__(self):
         super().__init__()

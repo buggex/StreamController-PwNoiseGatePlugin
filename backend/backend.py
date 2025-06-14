@@ -15,7 +15,13 @@ from pathlib import Path
 ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
-# TODO - is_socket_connected does not work it seams
+from enum import Enum
+
+class SocketStates(Enum):
+    INIT = 1
+    CONNECTED = 2
+    DISCONNECTED = 3
+    RECONNECT_TIMEOUT = 4
 
 class Backend:
     def __init__(self):
@@ -71,58 +77,88 @@ class Backend:
         current_host = self.host
         current_port = self.port
 
-        thread_sleep = 0.01 # 10 ms
-        
-        delay_reconnect_countdown = 0
-        delay_reconncet = 5 / thread_sleep # 5 seconds
+        received_data = None
 
+        state = SocketStates.INIT
+
+        ping_interval_ns = 5000000000 # 5 seconds in nanoseconds
+        last_ping_time = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+
+        connection_interval_ns = 5000000000 # 5 seconds in nanoseconds
+        last_connection_time = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+
+        # Try first connection
         try:
             connection = self.socket_reconnect(connection, current_host, current_port)
+            state = SocketStates.CONNECTED
         except Exception as e:
             log.error("Failed to connect to socket: {}", e)
+            state = SocketStates.DISCONNECTED
         
         while True:
-            # Sleep thread
-            time.sleep(thread_sleep)
+            current_time = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
 
+            # Check if the thread should stop
             if self.stop_socket_thread == True or gl.threads_running == False:
                 break
-
-            if delay_reconnect_countdown > 0:
-                delay_reconnect_countdown -= 1
-                continue
-
-            if not self.is_socket_connected(connection):
-                log.error("Socket connection lost")
-                try:
-                    connection = self.socket_reconnect(connection, current_host, current_port)
-                    time.sleep(0.1) # Wait a bit before trying to continue
-                except Exception as e:
-                    log.error("Failed to reconnect: {}", e)
-                    delay_reconnect_countdown = delay_reconncet
-                    continue
-
+            
+            # Check if the connection parameters have changed
             if self.has_connection_parameters_changed(current_host, current_port):
                 log.debug("Connection parameters changed")
                 current_host = self.host
                 current_port = self.port
+                state = SocketStates.DISCONNECTED
+
+            # Sleep for a short time to avoid busy waiting
+            time.sleep(0.01)
+            
+            #
+            # CONNECTED
+            #
+            if state == SocketStates.CONNECTED:
+
+                # PING
+                if current_time - last_ping_time > ping_interval_ns:
+                    last_ping_time = current_time
+                    if not self.send_ping(connection):
+                        log.error("Ping failed, trying to reconnect")
+                        state = SocketStates.DISCONNECTED
+
+                # HANDLE DATA
+                else:
+                    # Receive data from the socket
+                    try:
+                        received_data = connection.recv(1024)
+                        if received_data:
+                            self.socket_thread_handle_message(received_data)
+                    except:
+                        pass
+
+                    # Handle outgoing messages
+                    while not self.outgoing_queue.empty():
+                        if self.socket_thread_handle_outgoing(connection) is False:
+                            log.error("Failed to send outgoing message, trying to reconnect")
+                            state = SocketStates.DISCONNECTED
+
+            #
+            # DISCONNECTED
+            #
+            elif state == SocketStates.DISCONNECTED:
                 try:
                     connection = self.socket_reconnect(connection, current_host, current_port)
+                    state = SocketStates.CONNECTED
                 except Exception as e:
+                    last_connection_time = current_time
                     log.error("Failed to reconnect: {}", e)
-                    time.sleep(5)
+                    state = SocketStates.RECONNECT_TIMEOUT
 
-            received_data = None
-            try:
-                received_data = connection.recv(1024)
-            except:
-                pass
-            
-            if received_data:
-                self.socket_thread_handle_message(received_data)
-
-            while not self.outgoing_queue.empty():
-                self.socket_thread_handle_outgoing(connection)
+            #
+            # WAIT FOR RECONNECT TRY
+            #
+            elif state == SocketStates.RECONNECT_TIMEOUT:
+                # If we are in reconnect timeout, wait for a while before trying to reconnect again
+                if current_time - last_connection_time > connection_interval_ns:
+                    state = SocketStates.DISCONNECTED
         
         if connection is not None:
             connection.close()
@@ -131,13 +167,15 @@ class Backend:
     def has_connection_parameters_changed(self, current_host, current_port):
         return self.host != current_host or self.port != current_port        
     
-    def is_socket_connected(self, connection):
+    def send_ping(self, connection):
+        log.debug("Sending ping to socket...")
         if connection is None:
             return False
         try:
-            connection.sendall(b'')
+            # Try to send a small amount of data to check if the socket is still connected
+            connection.sendall("ping".encode())
             return True
-        except (socket.error, OSError):
+        except:
             return False
         
     def socket_reconnect(self, connection, host, port):
@@ -147,8 +185,8 @@ class Backend:
         except:
             pass
         connection = socket.socket()
+        connection.settimeout(0.01) # Connection calls should not block
         connection.connect((host, port))
-        connection.settimeout(0.001) # Connection calls should not block
         log.debug("Socket connected to {}:{}", host, port)
         return connection
     
@@ -183,5 +221,7 @@ class Backend:
             log.debug("Sending {}", cmd)
             cmd += "\n"  # Ensure the command ends with a newline
             connection.sendall(cmd.encode());
+            return True
         except:
             log.error("Failed to send {}", cmd)
+            return False
