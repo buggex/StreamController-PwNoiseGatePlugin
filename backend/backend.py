@@ -15,8 +15,7 @@ from pathlib import Path
 ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
 sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
 
-# TODO - Add ping to check if the socket is still connected?
-# TODO - The 5 second wait on reconnect cause shutdown to take longer than it should
+# TODO - is_socket_connected does not work it seams
 
 class Backend:
     def __init__(self):
@@ -72,14 +71,26 @@ class Backend:
         current_host = self.host
         current_port = self.port
 
+        thread_sleep = 0.01 # 10 ms
+        
+        delay_reconnect_countdown = 0
+        delay_reconncet = 5 / thread_sleep # 5 seconds
+
         try:
             connection = self.socket_reconnect(connection, current_host, current_port)
         except Exception as e:
             log.error("Failed to connect to socket: {}", e)
         
         while True:
+            # Sleep thread
+            time.sleep(thread_sleep)
+
             if self.stop_socket_thread == True or gl.threads_running == False:
                 break
+
+            if delay_reconnect_countdown > 0:
+                delay_reconnect_countdown -= 1
+                continue
 
             if not self.is_socket_connected(connection):
                 log.error("Socket connection lost")
@@ -88,7 +99,7 @@ class Backend:
                     time.sleep(0.1) # Wait a bit before trying to continue
                 except Exception as e:
                     log.error("Failed to reconnect: {}", e)
-                    time.sleep(5) # Wait 5 seconds before trying to reconnect
+                    delay_reconnect_countdown = delay_reconncet
                     continue
 
             if self.has_connection_parameters_changed(current_host, current_port):
@@ -112,9 +123,6 @@ class Backend:
 
             while not self.outgoing_queue.empty():
                 self.socket_thread_handle_outgoing(connection)
-
-            # Sleep thread
-            time.sleep(0.01) # 10 ms
         
         if connection is not None:
             connection.close()
