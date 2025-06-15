@@ -14,6 +14,8 @@ from data.plugins.com_buggex_pw_noise_gate.helpers import settings as Settings
 
 from loguru import logger as log
 
+import os
+
 # TODO add a custom label for the toggle action
  
 class Dial(ActionCore):
@@ -117,6 +119,7 @@ class Dial(ActionCore):
     def on_update(self):
         self.update_title()
         self.update_value_label()
+        self.update_icon()
 
     def on_remove(self):
         super().on_remove()
@@ -130,4 +133,8 @@ class Dial(ActionCore):
         if value_text != "N/A":
             value_text += " " + Params.DialParametersUnit[self.param_name]
         self.set_bottom_label(text=value_text)
+
+    def update_icon(self):
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "param.svg")
+        self.set_media(media_path=icon_path, size = 2.0)
         

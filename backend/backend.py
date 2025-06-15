@@ -64,16 +64,14 @@ class Backend:
     def add_callback(self, callback: Callable):
         with self.callbacks_mutex:
             if callback not in self.callbacks:
-                log.debug("Adding callback: {}", callback)
                 self.callbacks.append(callback)
 
     def remove_callback(self, callback: Callable):
         with self.callbacks_mutex:
             if callback in self.callbacks:
-                log.debug("Removing callback: {}", callback)
                 self.callbacks.remove(callback)
             else:
-                log.debug("Callback not found: {}", callback)
+                log.error("Callback not found: {}", callback)
 
     def socket_thread_run(self):
         connection = None
@@ -198,7 +196,6 @@ class Backend:
             cmd_strip = cmd.strip()
             if cmd_strip == "":
                 continue
-            log.debug("Received command: {}", cmd_strip)
 
             cmd_split = cmd_strip.split("|")
             if len(cmd_split) != 2:
@@ -220,7 +217,6 @@ class Backend:
     def socket_thread_handle_outgoing(self, connection):
         try:
             cmd = self.outgoing_queue.get()
-            log.debug("Sending {}", cmd)
             cmd += "\n"  # Ensure the command ends with a newline
             connection.sendall(cmd.encode());
             return True
