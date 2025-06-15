@@ -39,7 +39,7 @@ class PwNoiseGate(PluginBase):
         # Load settings
         settings = self.get_settings()
         self.backend.set_host(settings.get(Settings.SETTING_HOST, "localhost"))
-        self.backend.set_port(settings.get(Settings.SETTING_PORT, "8080"))
+        self.backend.set_port(settings.get(Settings.SETTING_PORT, "50301"))
         self.set_settings(settings) # set setting if this is the first run
 
         # Register actions
