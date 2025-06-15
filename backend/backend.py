@@ -9,12 +9,6 @@ from typing import Callable
 
 import globals as gl
 
-# To get access to plugin files
-import sys
-from pathlib import Path
-ABSOLUTE_PLUGIN_PATH = str(Path(__file__).parent.parent.absolute())
-sys.path.insert(0, ABSOLUTE_PLUGIN_PATH)
-
 from enum import Enum
 
 class SocketStates(Enum):

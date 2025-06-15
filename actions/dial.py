@@ -9,8 +9,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, Gio
 
-from data.plugins.com_buggex_pw_noise_gate.helpers import parameters as Params
-from data.plugins.com_buggex_pw_noise_gate.helpers import settings as Settings
+from com_buggex_pw_noise_gate.helpers import parameters as Params
+from com_buggex_pw_noise_gate.helpers import settings as Settings
 
 from loguru import logger as log
 
